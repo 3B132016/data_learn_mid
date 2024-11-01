@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.datasets import load_breast_cancer
 from sklearn.impute import SimpleImputer
 from sklearn import preprocessing
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import LeaveOneOut
 from sklearn import svm
 
 from imblearn.under_sampling import ClusterCentroids
@@ -132,35 +132,32 @@ if __name__ == "__main__":
     # 名目屬性轉換
     df_X = target_encoding(df_X, df_y)
     
-    # 重複執行repeat_times次的分層交互驗證
+    # LeaveOneOut檢驗法
+    loo = LeaveOneOut()
+    loo.get_n_splits(df_X)
     list_mapes = []
-    for times in range(repeat_times):
-        # 分層交互驗證
-        skf = StratifiedKFold(n_splits = 10, random_state= times, shuffle = True) # n_splits即K值
-        skf.get_n_splits(df_X, df_y)
-        for i, (train_index, test_index) in enumerate(skf.split(df_X, df_y)):
-        
-            X_train, X_test, y_train, y_test = df_X.iloc[train_index], df_X.iloc[test_index], df_y.iloc[train_index], df_y.iloc[test_index]
-            # 移除重複資料
-            X_train, y_train = remove_duplicates(X_train, y_train)
-            __print_data_class_info(y_train, "==================\n移除重複資料")
-            # 移除包含離羣值的資料
-            X_train, y_train = remove_outliers(X_train, y_train)
-            __print_data_class_info(y_train, "==================\n移除包含離羣值的資料")
+    for i, (train_index, test_index) in enumerate(loo.split(df_X)):
+        X_train, X_test, y_train, y_test = df_X.iloc[train_index], df_X.iloc[test_index], df_y.iloc[train_index], df_y.iloc[test_index]
+        # 移除重複資料
+        X_train, y_train = remove_duplicates(X_train, y_train)
+        __print_data_class_info(y_train, "==================\n移除重複資料")
+        # 移除包含離羣值的資料
+        X_train, y_train = remove_outliers(X_train, y_train)
+        __print_data_class_info(y_train, "==================\n移除包含離羣值的資料")
 
-            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編前")
-            # 資料數量化編
-            X_train, y_train = under_sampling(X_train, y_train)
-            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編後")
+        __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編前")
+        # 資料數量化編
+        X_train, y_train = under_sampling(X_train, y_train)
+        __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編後")
 
-            # 資料標準化
-            scaler = preprocessing.MinMaxScaler(feature_range = (0, 1)) #轉換到[1,2]間，如果沒有設定則為[0,1]
-            scaler.fit(X_train)
-            X_train = scaler.transform(X_train)
+        # 資料標準化
+        scaler = preprocessing.MinMaxScaler(feature_range = (0, 1)) #轉換到[1,2]間，如果沒有設定則為[0,1]
+        scaler.fit(X_train)
+        X_train = scaler.transform(X_train)
 
-            clf = svm.SVC(kernel='linear', C=1).fit(X_train, y_train)
-            accuracy = clf.score(scaler.transform(X_test), y_test) # 要記得把X_test也一併使用同一個scaler進行轉換
-            print("第{0}輪第{1}次測試資料集的預測準確率：{2}%".format(times + 1, i + 1, round(accuracy * 100, 3)))
-            list_mapes.append(accuracy)
+        clf = svm.SVC(kernel='linear', C=1).fit(X_train, y_train)
+        accuracy = clf.score(scaler.transform(X_test), y_test) # 要記得把X_test也一併使用同一個scaler進行轉換
+        print("第{0}次測試資料集的預測準確率：{1}%".format(i + 1, round(accuracy * 100, 3)))
+        list_mapes.append(accuracy)
 
-    print("\n============\n平均正確率\n============\n{0}%".format(round((sum(list_mapes) / len(list_mapes)) * 100, 3))) #96.523%
+    print("\n============\n平均正確率\n============\n{0}%".format(round((sum(list_mapes) / len(list_mapes)) * 100, 3)))
