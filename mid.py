@@ -34,11 +34,10 @@ def value_impute(df: pd.DataFrame, df1: pd.DataFrame) -> np.array:
     imp.fit(df)
     return pd.DataFrame(imp.transform(df1), columns=df1.columns)
 
-def target_encoding(df_X: pd.DataFrame, df_y: pd.DataFrame) -> pd.DataFrame:
-    """ 使用target_encoding方式進行名目屬性轉換
+def one_hot_encoding(df_X: pd.DataFrame) -> pd.DataFrame:
+    """ 使用One-Hot Encoding方式進行名目屬性轉換
     [parameters]
     df_X: 輸入項X
-    df_y: 輸出項y
     """
     # 先檢查dataframe是否包含名目屬性
     list_nominal_attribute_names = []
@@ -47,13 +46,12 @@ def target_encoding(df_X: pd.DataFrame, df_y: pd.DataFrame) -> pd.DataFrame:
             list_nominal_attribute_names.append(series_name)
     # 如果包含名目屬性
     if len(list_nominal_attribute_names) > 0:
-        t_encoder = preprocessing.TargetEncoder(smooth="auto")
-        np_array = t_encoder.fit_transform(df_X[list_nominal_attribute_names], df_y)
-        d = { list_nominal_attribute_names[attribute_index]: np_array[: attribute_index] for attribute_index in range(len(list_nominal_attribute_names)) }
-        df_X.drop(list_nominal_attribute_names, axis=1)
-        return pd.merge(pd.DataFrame(d), df_X.drop(list_nominal_attribute_names, axis=1), left_index=True, right_index=True)
-    else:
-        return df_X
+        oh_encoder = preprocessing.OneHotEncoder(handle_unknown='ignore', sparse=False)
+        encoded_features = oh_encoder.fit_transform(df_X[list_nominal_attribute_names])
+        encoded_df = pd.DataFrame(encoded_features, columns=oh_encoder.get_feature_names_out(list_nominal_attribute_names))
+        df_X = df_X.drop(list_nominal_attribute_names, axis=1)
+        df_X = pd.concat([df_X.reset_index(drop=True), encoded_df.reset_index(drop=True)], axis=1)
+    return df_X
 
 def remove_duplicates(df_X: pd.DataFrame, df_y: pd.DataFrame) -> (pd.DataFrame, pd.DataFrame):
     """
@@ -125,7 +123,7 @@ if __name__ == "__main__":
     # 缺漏值補充
     df_X = value_impute(df_X, df_X)
     # 名目屬性轉換
-    df_X = target_encoding(df_X, df_y)
+    df_X = one_hot_encoding(df_X)
     
     # LeaveOneOut檢驗法
     loo = LeaveOneOut()
