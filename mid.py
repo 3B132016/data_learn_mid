@@ -7,7 +7,7 @@ from sklearn import preprocessing
 from sklearn.model_selection import LeaveOneOut
 from sklearn import svm
 
-from imblearn.under_sampling import ClusterCentroids
+from imblearn.under_sampling import RandomUnderSampler
 
 def _print_class_counts(df_y):
     for series_name, series in df_y.value_counts().items():
@@ -107,14 +107,9 @@ def under_sampling(df_X: pd.DataFrame, df_y: pd.DataFrame, random_state = 0) -> 
     df_y: 輸出項y
     random_state: 隨機狀態
     """
-    list_X_attribute_names = [series_name for series_name, _ in df_X.items()]
-    cc = ClusterCentroids(random_state = random_state)
-    np_array_X, np_array_y = cc.fit_resample(df_X.values, df_y.values)
-    # np_array_X 為 列、欄排列，需要轉置為 欄、列排列
-    np_array_X = np_array_X.T
-    dict_X = { list_X_attribute_names[attribute_index] : np_array_X[attribute_index] for attribute_index in range(len(list_X_attribute_names)) }
-    return pd.DataFrame(dict_X), pd.Series(data = np_array_y, name = df_y.name)
-
+    rus = RandomUnderSampler(random_state=random_state)
+    np_array_X, np_array_y = rus.fit_resample(df_X.values, df_y.values)
+    return pd.DataFrame(np_array_X, columns=df_X.columns), pd.Series(data=np_array_y, name=df_y.name)
 
 if __name__ == "__main__":
     
