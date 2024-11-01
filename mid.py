@@ -2,8 +2,7 @@ import copy
 import numpy as np
 import pandas as pd
 from sklearn.datasets import load_breast_cancer
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import IterativeImputer
+from sklearn.impute import SimpleImputer
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
 from sklearn import svm
@@ -25,16 +24,15 @@ def load_data() -> (pd.DataFrame, pd.DataFrame):
     _print_class_counts(df_y)
     return df_X, df_y
 
-def value_impute(df: pd.DataFrame, df1: pd.DataFrame, random_state = 0) -> np.array:
-    """ 使用多變量方式進行缺漏值填補 
-    [parameters]
+def value_impute(df: pd.DataFrame, df1: pd.DataFrame) -> np.array:
+    """ [parameters]
     df: 參考補值的資料
     df1: 欲進行補值的資料
-    random_state: 隨機狀態
     """
-    imp = IterativeImputer(max_iter=10, random_state = random_state)
+    imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+    # 設定缺漏值以np的nan型式呈現，補值策略為平均值(mean)
     imp.fit(df)
-    return pd.DataFrame(imp.transform(df1),columns = df1.columns)
+    return pd.DataFrame(imp.transform(df1), columns=df1.columns)
 
 def target_encoding(df_X: pd.DataFrame, df_y: pd.DataFrame) -> pd.DataFrame:
     """ 使用target_encoding方式進行名目屬性轉換
@@ -72,7 +70,7 @@ def remove_duplicates(df_X: pd.DataFrame, df_y: pd.DataFrame) -> (pd.DataFrame, 
 
 def remove_outliers(df_X: pd.DataFrame, df_y: pd.DataFrame, times: float = 1.5) -> (pd.DataFrame, pd.DataFrame):
     """
-    移除離群值
+    移除離羣值
     [parameters]
     df_X: 輸入項X
     df_y: 輸出項y
@@ -83,7 +81,7 @@ def remove_outliers(df_X: pd.DataFrame, df_y: pd.DataFrame, times: float = 1.5) 
     df[df_y.name] = df_y
     y_name = df_y.name
     list_dataframes = []
-    for class_name, series in df_y.value_counts().items(): # 需要依據y的類別值，將資料分割後，分別進行離群值移除
+    for class_name, series in df_y.value_counts().items(): # 需要依據y的類別值，將資料分割後，分別進行離羣值移除
         df_temp = df[df[y_name] == class_name]
         print(df_temp.shape)
         for column_name, series in df_temp.items():
@@ -129,7 +127,7 @@ if __name__ == "__main__":
 
     # 載入資料
     df_X, df_y = load_data()
-    # 缺漏值填補
+    # 缺漏值補充
     df_X = value_impute(df_X, df_X)
     # 名目屬性轉換
     df_X = target_encoding(df_X, df_y)
@@ -146,14 +144,14 @@ if __name__ == "__main__":
             # 移除重複資料
             X_train, y_train = remove_duplicates(X_train, y_train)
             __print_data_class_info(y_train, "==================\n移除重複資料")
-            # 移除包含離群值的資料
+            # 移除包含離羣值的資料
             X_train, y_train = remove_outliers(X_train, y_train)
-            __print_data_class_info(y_train, "==================\n移除包含離群值的資料")
+            __print_data_class_info(y_train, "==================\n移除包含離羣值的資料")
 
-            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化約前")
-            # 資料數量化約
+            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編前")
+            # 資料數量化編
             X_train, y_train = under_sampling(X_train, y_train)
-            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化約後")
+            __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編後")
 
             # 資料標準化
             scaler = preprocessing.MinMaxScaler(feature_range = (0, 1)) #轉換到[1,2]間，如果沒有設定則為[0,1]
