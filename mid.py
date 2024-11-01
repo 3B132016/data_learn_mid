@@ -6,6 +6,7 @@ from sklearn.impute import SimpleImputer
 from sklearn import preprocessing
 from sklearn.model_selection import LeaveOneOut
 from sklearn import svm
+from scipy.stats import zscore
 
 from imblearn.under_sampling import RandomUnderSampler
 
@@ -66,35 +67,22 @@ def remove_duplicates(df_X: pd.DataFrame, df_y: pd.DataFrame) -> (pd.DataFrame, 
     df = df.drop_duplicates() # 將合併的資料中，重複者移除
     return df.iloc[:, :-1], df.iloc[:, -1] # df.shape[0]為資料筆數；df.shape[1]為屬性個數
 
-def remove_outliers(df_X: pd.DataFrame, df_y: pd.DataFrame, times: float = 1.5) -> (pd.DataFrame, pd.DataFrame):
+def remove_outliers(df_X: pd.DataFrame, df_y: pd.DataFrame, times: float = 3) -> (pd.DataFrame, pd.DataFrame):
     """
-    移除離羣值
+    移除離群值
     [parameters]
     df_X: 輸入項X
     df_y: 輸出項y
-    times: IQR倍率
+    times: 標準差倍率
     """
     # 先將輸入資料(X)與輸出資料(y)合併，需要移除時一併刪除對應的y
     df = copy.deepcopy(df_X)
     df[df_y.name] = df_y
     y_name = df_y.name
-    list_dataframes = []
-    for class_name, series in df_y.value_counts().items(): # 需要依據y的類別值，將資料分割後，分別進行離羣值移除
-        df_temp = df[df[y_name] == class_name]
-        print(df_temp.shape)
-        for column_name, series in df_temp.items():
-            if column_name == y_name:
-                continue
-            Q1 = series.quantile(0.25)
-            Q3 = series.quantile(0.75)
-            IQR = Q3 - Q1 #IQR is interquartile range.
-            ub = Q3 + times * IQR
-            lb = Q1 - times * IQR
-            filter = (df_temp[column_name] >= lb) & (df_temp[column_name] <= ub)
-            df_temp = df_temp.loc[filter]
-        list_dataframes.append(df_temp.loc[filter])
-            
-    df = pd.concat(list_dataframes, axis=0, ignore_index=True)
+    for column_name in df_X.columns:
+        z_scores = zscore(df[column_name])
+        filter = (z_scores < times) & (z_scores > -times)
+        df = df.loc[filter]
     return df.iloc[:, :-1], df.iloc[:, -1] # df.shape[0]為資料筆數；df.shape[1]為屬性個數
 
 def under_sampling(df_X: pd.DataFrame, df_y: pd.DataFrame, random_state = 0) -> (pd.DataFrame, pd.DataFrame):
@@ -134,9 +122,9 @@ if __name__ == "__main__":
         # 移除重複資料
         X_train, y_train = remove_duplicates(X_train, y_train)
         __print_data_class_info(y_train, "==================\n移除重複資料")
-        # 移除包含離羣值的資料
+        # 移除包含離群值的資料
         X_train, y_train = remove_outliers(X_train, y_train)
-        __print_data_class_info(y_train, "==================\n移除包含離羣值的資料")
+        __print_data_class_info(y_train, "==================\n移除包含離群值的資料")
 
         __print_data_class_info(y_train, "==================\n訓練資料集經過數量化編前")
         # 資料數量化編
